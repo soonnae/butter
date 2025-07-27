@@ -41,7 +41,7 @@ console.log(device)
 
 const exec = (command) => {
     console.log(command)
-    return execSync(command)
+    return execSync(command, { stdio: 'inherit', shell: true })
 }
 
 var sigfiles = []
@@ -50,7 +50,7 @@ if(infile.endsWith(".bin")) {
     if(!fs.existsSync(package)) {
         fs.mkdirSync(package)
     }
-    exec(`tar -xvf ${infile} -C ${package}`);
+    exec(`tar -xvf ${path.resolve(infile)} -C ${package}`);
     sigfiles.push(...fs.readdirSync(package).filter((file) => { console.log(file); return new RegExp("(.*)_(0801|2801|2805)_(.*).pro.fw.sig").test(file)}).map((file) => {
         return package+"/"+file;
      }))
@@ -83,7 +83,7 @@ const versions = sigfiles.map((file) => {
 })
 
 //lazy because only one sig file at a time in this version
-const dir = process.argv[3]+"/"+device+"_"+versions[0]+"_recovery";
+const dir = path.resolve(process.argv[3])+"/"+device+"_"+versions[0]+"_recovery";
 if(!fs.existsSync(dir))
     fs.mkdirSync(dir)
 const deleteme = cwd()+"/"+package;
@@ -92,7 +92,7 @@ process.chdir(dir)
 const decryptSigFile = (sigfile, key) => {
     console.log("decrypting .sig file: "+sigfile)
     console.log("cwd is "+cwd())
-    const stdout = exec("python "+toolsdir+"dji-firmware-tools/dji_imah_fwsig.py -vv "+(keys[device].verify ? "-k "+keys[device].verify : "-f")+ " -k "+key+" -u -i "+sigfile);
+    const stdout = exec("python "+toolsdir+"dji-firmware-tools/dji_imah_fwsig.py -vv "+(keys[device].verify ? "-k "+keys[device].verify : "-f")+ " -k "+key+" -u -i "+path.resolve(sigfile));
     if(!/Decrypted chunks checksum (.*) matches./.test(stdout.toString())) {
         console.error("Decrypted file checksum mismatch for: "+sigfile)
     }
@@ -114,10 +114,10 @@ const clean = (file) => {
     }
 }
 const zipfiles = binfiles.filter(file => isFileHead(file, "PK"))
-zipfiles.forEach(file => execSync("unzip -o "+file))
+zipfiles.forEach(file => execSync("unzip -o "+file, { stdio: 'inherit', shell: true }))
 
 const brfiles = fs.readdirSync(process.cwd()).filter(file => file.endsWith(".br"))
-brfiles.forEach(file => execSync("brotli -f -d "+file))
+brfiles.forEach(file => execSync("brotli -f -d "+file, { stdio: 'inherit', shell: true }))
 
 const tlfiles = fs.readdirSync(process.cwd()).filter(file => file.endsWith(".transfer.list"))
 tlfiles.forEach(file => {
